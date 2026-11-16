@@ -112,132 +112,68 @@ describe('questionService', () => {
   });
 
   describe('getQuestionByIdService', () => {
+    const mockFindByIdAndUpdate = (result) => {
+      Question.findByIdAndUpdate = vi.fn().mockReturnValue({
+        populate: vi.fn().mockReturnValue({
+          populate: vi.fn().mockResolvedValue(result),
+        }),
+      });
+    };
+
     // Success case
     it('should return question by id with populated fields and answers', async () => {
-      // Arrange
-      const mockQuestion = {
-        _id: 'question123',
-        title: 'Test Question',
-        views: 0,
-        save: vi.fn().mockResolvedValue(true),
-      };
-
-      const mockPopulatedQuestion = {
-        _id: 'question123',
-        title: 'Test Question',
-        author: { _id: 'user1', name: 'User 1' },
-        tags: [{ _id: 'tag1', name: 'javascript' }],
-        views: 1,
+      const mockAnswers = [{ _id: 'answer1', answerText: 'Test Answer' }];
+      mockFindByIdAndUpdate({
         toObject: vi.fn().mockReturnValue({
           _id: 'question123',
           title: 'Test Question',
-          author: { _id: 'user1', name: 'User 1' },
           views: 1,
         }),
-      };
-
-      const mockAnswers = [
-        { _id: 'answer1', answerText: 'Test Answer' },
-      ];
-
-      Question.findById = vi.fn()
-        .mockResolvedValueOnce(mockQuestion)
-        .mockReturnValueOnce({
-          populate: vi.fn().mockReturnValue({
-            populate: vi.fn().mockResolvedValue(mockPopulatedQuestion),
-          }),
-        });
-
+      });
       Answer.find = vi.fn().mockReturnValue({
         populate: vi.fn().mockResolvedValue(mockAnswers),
       });
 
-      // Act
       const result = await getQuestionByIdService('question123');
 
-      // Assert
-      expect(Question.findById).toHaveBeenCalledWith('question123');
-      expect(mockQuestion.save).toHaveBeenCalled();
+      expect(Answer.find).toHaveBeenCalledWith({ questionId: 'question123' });
+      expect(result._id).toBe('question123');
       expect(result.answers).toEqual(mockAnswers);
     });
 
     // Edge case - view increment
-    it('should increment views count', async () => {
-      // Arrange
-      const mockQuestion = {
-        _id: 'question123',
-        views: 5,
-        save: vi.fn().mockResolvedValue(true),
-      };
+    it('should increment views count atomically', async () => {
+      mockFindByIdAndUpdate({ toObject: vi.fn().mockReturnValue({ _id: 'question123', views: 6 }) });
+      Answer.find = vi.fn().mockReturnValue({ populate: vi.fn().mockResolvedValue([]) });
 
-      const mockPopulated = {
-        _id: 'question123',
-        views: 6,
-        toObject: vi.fn().mockReturnValue({ _id: 'question123', views: 6 }),
-      };
+      const result = await getQuestionByIdService('question123');
 
-      Question.findById = vi.fn()
-        .mockResolvedValueOnce(mockQuestion)
-        .mockReturnValueOnce({
-          populate: vi.fn().mockReturnValue({
-            populate: vi.fn().mockResolvedValue(mockPopulated),
-          }),
-        });
-
-      Answer.find = vi.fn().mockReturnValue({
-        populate: vi.fn().mockResolvedValue([]),
-      });
-
-      // Act
-      await getQuestionByIdService('question123');
-
-      // Assert
-      expect(mockQuestion.views).toBe(6);
-      expect(mockQuestion.save).toHaveBeenCalled();
+      expect(Question.findByIdAndUpdate).toHaveBeenCalledWith(
+        'question123',
+        { $inc: { views: 1 } },
+        { new: true },
+      );
+      expect(result.views).toBe(6);
     });
 
     // Error case - question not found
     it('should throw 404 error if question not found', async () => {
-      // Arrange
-      Question.findById = vi.fn().mockResolvedValue(null);
+      mockFindByIdAndUpdate(null);
 
-      // Act & Assert
       await expect(getQuestionByIdService('nonexistent')).rejects.toThrow('Question not found');
       await expect(getQuestionByIdService('nonexistent')).rejects.toMatchObject({
         statusCode: 404,
       });
     });
 
-    // Error case - question disappears after view increment
-    it('should throw 404 error if question not found after view increment', async () => {
-      // Arrange
-      const mockQuestion = {
-        _id: 'question123',
-        views: 0,
-        save: vi.fn().mockResolvedValue(true),
-      };
-
-      Question.findById = vi.fn()
-        .mockResolvedValueOnce(mockQuestion)
-        .mockReturnValueOnce({
-          populate: vi.fn().mockReturnValue({
-            populate: vi.fn().mockResolvedValue(null),
-          }),
-        });
-
-      // Act & Assert
-      await expect(getQuestionByIdService('question123')).rejects.toMatchObject({
-        message: 'Question not found after view increment',
-        statusCode: 404,
-      });
-    });
-
     // Failure case - database error
     it('should propagate database errors', async () => {
-      // Arrange
-      Question.findById = vi.fn().mockRejectedValue(new Error('Database error'));
+      Question.findByIdAndUpdate = vi.fn().mockReturnValue({
+        populate: vi.fn().mockReturnValue({
+          populate: vi.fn().mockRejectedValue(new Error('Database error')),
+        }),
+      });
 
-      // Act & Assert
       await expect(getQuestionByIdService('question123')).rejects.toThrow('Database error');
     });
   });

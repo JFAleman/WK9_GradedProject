@@ -85,15 +85,15 @@ describe('Answers API', () => {
   });
 
   // -------------------
-  // GET /api/answers/question/:questionId
+  // GET /api/questions/:questionId/answers
   // -------------------
-  it('GET /api/answers/question/:questionId -> should return all answers for a question with populated author', async () => {
+  it('GET /api/questions/:questionId/answers -> should return all answers for a question with populated author', async () => {
     const question = await createQuestion();
     await createAnswer({ question: question, answerText: 'Answer 1' });
     await createAnswer({ question: question, answerText: 'Answer 2' });
 
     const response = await request(app)
-      .get(`/api/answers/question/${question._id}`);
+      .get(`/api/questions/${question._id}/answers`);
 
     expect(response.status).toBe(200);
     expect(response.body.success).toBe(true);
@@ -102,18 +102,18 @@ describe('Answers API', () => {
     expect(response.body.data[0].author).toHaveProperty('name');
   });
 
-  it('GET /api/answers/question/:questionId -> should return 404 when no answers exist for a question', async () => {
+  it('GET /api/questions/:questionId/answers -> should return 404 when no answers exist for a question', async () => {
     const question = await createQuestion();
 
     const response = await request(app)
-      .get(`/api/answers/question/${question._id}`);
+      .get(`/api/questions/${question._id}/answers`);
 
     expect(response.status).toBe(404);
     expect(response.body.success).toBe(false);
     expect(response.body.message).toBe('No answers found for this question');
   });
 
-  it('GET /api/answers/question/:questionId -> should only return answers for the specified question', async () => {
+  it('GET /api/questions/:questionId/answers -> should only return answers for the specified question', async () => {
     const question1 = await createQuestion();
     const question2 = await createQuestion();
 
@@ -121,7 +121,7 @@ describe('Answers API', () => {
     await createAnswer({ question: question2, answerText: 'Answer for Q2' });
 
     const response = await request(app)
-      .get(`/api/answers/question/${question1._id}`);
+      .get(`/api/questions/${question1._id}/answers`);
 
     expect(response.status).toBe(200);
     expect(response.body.data).toHaveLength(1);
@@ -129,13 +129,13 @@ describe('Answers API', () => {
   });
 
   // -------------------
-  // POST /api/answers/question/:questionId
+  // POST /api/questions/:questionId/answers
   // -------------------
-  it('POST /api/answers/question/:questionId -> should create a new answer with valid data', async () => {
+  it('POST /api/questions/:questionId/answers -> should create a new answer with valid data', async () => {
     const question = await createQuestion();
 
     const response = await request(app)
-      .post(`/api/answers/question/${question._id}`)
+      .post(`/api/questions/${question._id}/answers`)
       .set('Authorization', `Bearer ${jwtToken}`)
       .send({ answerText: 'This is my answer to the question' });
 
@@ -150,11 +150,11 @@ describe('Answers API', () => {
     expect(savedAnswer.questionId.toString()).toBe(question._id.toString());
   });
 
-  it('POST /api/answers/question/:questionId -> should set the author from the authenticated user (JWT), not from body', async () => {
+  it('POST /api/questions/:questionId/answers -> should set the author from the authenticated user (JWT), not from body', async () => {
     const question = await createQuestion();
 
     const response = await request(app)
-      .post(`/api/answers/question/${question._id}`)
+      .post(`/api/questions/${question._id}/answers`)
       .set('Authorization', `Bearer ${jwtToken}`)
       .send({
         answerText: 'JWT author test answer',
@@ -166,22 +166,22 @@ describe('Answers API', () => {
     expect(savedAnswer.author.toString()).toBe(mockUser._id.toString());
   });
 
-  it('POST /api/answers/question/:questionId -> should return 401 without authentication token', async () => {
+  it('POST /api/questions/:questionId/answers -> should return 401 without authentication token', async () => {
     const question = await createQuestion();
 
     const response = await request(app)
-      .post(`/api/answers/question/${question._id}`)
+      .post(`/api/questions/${question._id}/answers`)
       .send({ answerText: 'Test answer', author: new mongoose.Types.ObjectId() });
 
     expect(response.status).toBe(401);
     expect(response.body.success).toBe(false);
   });
 
-  it('POST /api/answers/question/:questionId -> should return 401 with invalid authentication token', async () => {
+  it('POST /api/questions/:questionId/answers -> should return 401 with invalid authentication token', async () => {
     const question = await createQuestion();
 
     const response = await request(app)
-      .post(`/api/answers/question/${question._id}`)
+      .post(`/api/questions/${question._id}/answers`)
       .set('Authorization', 'Bearer invalid-token')
       .send({ answerText: 'Test answer', author: new mongoose.Types.ObjectId() });
 
