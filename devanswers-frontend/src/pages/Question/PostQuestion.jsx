@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { FaPaperPlane } from 'react-icons/fa';
+import { useDispatch, useSelector } from 'react-redux';
+import { FaPaperPlane, FaMagic } from 'react-icons/fa';
 
 import { postQuestion } from '../../reducers/questionSlice.js';
+import { improveQuestion } from '../../services/aiService.js';
+import AiSuggestion from '../../components/Question/AiSuggestion.jsx';
 
-import { Col, Container, Form, Button, Card, Row } from 'react-bootstrap';
+import { Alert, Col, Container, Form, Button, Card, Row, Spinner } from 'react-bootstrap';
 import './PostQuestion.css';
 
 const PostQuestion = () => {
@@ -13,8 +15,50 @@ const PostQuestion = () => {
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
 
+  const [suggestions, setSuggestions] = useState({});
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
+
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const userInfo = useSelector((state) => state.user?.userInfo);
+
+  const handleImprove = async () => {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const result = await improveQuestion({ title, description, tags }, userInfo?.token);
+      const current = { title, description, tags };
+      const next = {};
+      ['title', 'description', 'tags'].forEach((field) => {
+        const value = result?.[field];
+        if (typeof value === 'string' && value.trim() && value !== current[field]) {
+          next[field] = value;
+        }
+      });
+      setSuggestions(next);
+    } catch (error) {
+      setSuggestions({});
+      setAiError(
+        error.response?.data?.message ||
+          'Could not get AI suggestions right now. You can still post your question.',
+      );
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const dismissSuggestion = (field) =>
+    setSuggestions((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+
+  const acceptSuggestion = (field, setter) => {
+    setter(suggestions[field]);
+    dismissSuggestion(field);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -63,6 +107,14 @@ const PostQuestion = () => {
                       required
                       className="pq-input"
                     />
+                    {suggestions.title && (
+                      <AiSuggestion
+                        label="title"
+                        suggestion={suggestions.title}
+                        onAccept={() => acceptSuggestion('title', setTitle)}
+                        onReject={() => dismissSuggestion('title')}
+                      />
+                    )}
                   </Form.Group>
 
                   <Form.Group className="mb-4">
@@ -80,6 +132,14 @@ const PostQuestion = () => {
                       required
                       className="pq-textarea"
                     />
+                    {suggestions.description && (
+                      <AiSuggestion
+                        label="description"
+                        suggestion={suggestions.description}
+                        onAccept={() => acceptSuggestion('description', setDescription)}
+                        onReject={() => dismissSuggestion('description')}
+                      />
+                    )}
                   </Form.Group>
 
                   <Form.Group className="mb-4">
@@ -98,9 +158,38 @@ const PostQuestion = () => {
                     <Form.Text className="text-muted">
                       Add up to 5 tags to describe what your question is about
                     </Form.Text>
+                    {suggestions.tags && (
+                      <AiSuggestion
+                        label="tags"
+                        suggestion={suggestions.tags}
+                        onAccept={() => acceptSuggestion('tags', setTags)}
+                        onReject={() => dismissSuggestion('tags')}
+                      />
+                    )}
                   </Form.Group>
 
-                  <Button 
+                  {aiError && (
+                    <Alert variant="warning" dismissible onClose={() => setAiError(null)}>
+                      {aiError}
+                    </Alert>
+                  )}
+
+                  <Button
+                    type="button"
+                    variant="outline-primary"
+                    className="w-100 mb-3"
+                    onClick={handleImprove}
+                    disabled={aiLoading || !title.trim() || !description.trim()}
+                  >
+                    {aiLoading ? (
+                      <Spinner animation="border" size="sm" className="me-2" />
+                    ) : (
+                      <FaMagic className="me-2" />
+                    )}
+                    {aiLoading ? 'Improving...' : 'Improve with AI'}
+                  </Button>
+
+                  <Button
                     type="submit" 
                     variant="primary" 
                     size="lg" 

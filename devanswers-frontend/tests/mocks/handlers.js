@@ -73,6 +73,20 @@ export const handlers = [
     return HttpResponse.json({ data: newQuestion }, { status: 201 });
   }),
 
+  http.post(`${BASE_URL}/ai/summarize-answers`, () =>
+    HttpResponse.json({ data: { summary: 'Mock summary of the answers.' } }),
+  ),
+
+  http.post(`${BASE_URL}/ai/improve-question`, () =>
+    HttpResponse.json({
+      data: {
+        title: 'Improved title',
+        description: 'Improved description',
+        tags: 'javascript, react',
+      },
+    }),
+  ),
+
   http.post(`${BASE_URL}/questions/:id/upvote`, ({ params }) => {
     const question = mockQuestions.find((q) => q._id === params.id);
 

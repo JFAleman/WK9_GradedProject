@@ -1,0 +1,27 @@
+.ai-suggestion {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px dashed #764ba2;
+  background-color: rgba(118, 75, 162, 0.08);
+}
+
+.ai-suggestion-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #764ba2;
+  margin-bottom: 0.25rem;
+}
+
+.ai-suggestion-text {
+  white-space: pre-wrap;
+  color: var(--text-color);
+  margin-bottom: 0.5rem;
+}
+
+.ai-suggestion-actions {
+  display: flex;
+  gap: 0.5rem;
+}
